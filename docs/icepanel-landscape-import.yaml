@@ -1,0 +1,204 @@
+namespace: arqdissoft-c4
+
+modelObjects:
+  - id: dominio
+    name: Consulta Vehicular SRI y ANT
+    type: domain
+    caption: Diseño y Arquitectura de Software (ISWZ2202) · David Morales
+
+  - id: ciudadano
+    name: Ciudadano
+    type: actor
+    parentId: dominio
+    caption: Persona natural que consulta su RUC, su vehículo y los puntos de su licencia
+    description: |
+      Ingresa su correo y su RUC, luego la placa de su vehículo, y revisa sus puntos de licencia.
+      Ve en todo momento el paso en el que está y si el dato de la ANT es reciente o de respaldo.
+
+  - id: sistema
+    name: Consulta Vehicular
+    type: system
+    parentId: dominio
+    caption: Verifica al contribuyente, su vehículo y sus puntos de licencia
+    description: |
+      Sistema web que:
+      1. Verifica en el SRI que el RUC sea de un contribuyente **persona natural** y muestra su información.
+      2. Consulta el vehículo por placa en el SRI.
+      3. Consulta los puntos de la licencia en la ANT.
+
+      Como la ANT tiene baja disponibilidad, usa el patrón **Cache-Aside con respaldo**:
+      cada respuesta adecuada de la ANT se guarda en Redis (nube) y, si la ANT falla,
+      se responde con el último dato bueno avisando que no es reciente.
+    links:
+      - url: https://github.com/LuisdavidM88/arqdissoft-c4
+        customName: Código fuente (GitHub)
+
+  - id: sri-catastro
+    name: SRI · Catastro de contribuyentes
+    type: system
+    parentId: dominio
+    external: true
+    caption: API REST pública del SRI
+    description: |
+      - `existePorNumeroRuc?numeroRuc=` → responde `true` / `false`
+      - `obtenerPorNumerosRuc?ruc=` → lista con razonSocial, estadoContribuyenteRuc,
+        tipoContribuyente (PERSONA NATURAL / SOCIEDAD), actividadEconomicaPrincipal, régimen
+    links:
+      - url: https://srienlinea.sri.gob.ec/sri-catastro-sujeto-servicio-internet/rest/ConsolidadoContribuyente/obtenerPorNumerosRuc?&ruc=
+        customName: API ConsolidadoContribuyente
+
+  - id: sri-matriculacion
+    name: SRI · Matriculación vehicular
+    type: system
+    parentId: dominio
+    external: true
+    caption: API REST pública del SRI con los datos del vehículo
+    description: |
+      `BaseVehiculo/obtenerPorNumeroPlacaOPorNumeroCampvOPorNumeroCpn?numeroPlacaCampvCpn=`
+      devuelve marca, modelo, año, clase y datos de matrícula del vehículo.
+    links:
+      - url: https://srienlinea.sri.gob.ec/sri-matriculacion-vehicular-recaudacion-servicio-internet/rest/BaseVehiculo/obtenerPorNumeroPlacaOPorNumeroCampvOPorNumeroCpn?numeroPlacaCampvCpn=
+        customName: BaseVehiculo
+
+  - id: ant
+    name: ANT · Portal de citaciones
+    type: system
+    parentId: dominio
+    external: true
+    caption: Página web (HTML) de la ANT · baja disponibilidad
+    description: |
+      `clp_grid_citaciones.jsp?ps_tipo_identificacion=CED&ps_identificacion=&ps_placa=`
+
+      No es una API REST: devuelve una página web, por lo que ms-ant extrae los puntos y las citaciones
+      del HTML. Tiene **muy baja disponibilidad** (responde con frecuencia `502 Bad Gateway`),
+      por eso el sistema guarda en caché cada respuesta correcta.
+    links:
+      - url: https://consultaweb.ant.gob.ec/PortalWEB/paginas/clientes/clp_grid_citaciones.jsp?ps_tipo_identificacion=CED&ps_identificacion=&ps_placa=
+        customName: clp_grid_citaciones.jsp
+
+  - id: web
+    name: Web Consulta Vehicular
+    type: app
+    parentId: sistema
+    caption: SPA React · formulario por pasos
+    description: |
+      Interfaz en 4 pasos: **Identificación** (correo + RUC) → **Vehículo** (placa) → **Licencia** (puntos) → **Resumen**.
+      - Valida cédula, RUC (dígito verificador), placa y correo antes de enviar.
+      - Cada pantalla tiene sus 4 estados: cargando, vacío, error (con *Reintentar*) y éxito.
+      - Muestra el origen del dato de la ANT: *En vivo*, *Desde caché* o *Dato de respaldo* con aviso de que no es reciente.
+      - Panel de pruebas (`?demo`) para simular la caída de la ANT.
+    technologyIds: [9ZYWgwsvAwKsjKK8lNgg, RGGR8ElsMwiF1HjOmLMm, DNDVKUeDt9PblNr2dH5I]
+    icon:
+      technologyId: 9ZYWgwsvAwKsjKK8lNgg
+    links:
+      - url: https://github.com/LuisdavidM88/arqdissoft-c4/tree/main/frontend
+        customName: Código fuente (frontend)
+
+  - id: ms-sri
+    name: ms-sri
+    type: app
+    parentId: sistema
+    caption: Microservicio Java · contribuyente y vehículo
+    description: |
+      **API v1 (puerto 8081)**
+      - `GET /api/v1/contribuyentes/{ruc}` → 200 · 400 `RUC_INVALIDO` · 404 `NO_ES_CONTRIBUYENTE` · 422 `NO_ES_PERSONA_NATURAL` · 502 `SRI_NO_DISPONIBLE`
+      - `GET /api/v1/vehiculos/{placa}` → 200 · 400 `PLACA_INVALIDA` · 404 `VEHICULO_NO_ENCONTRADO` · 502 `SRI_NO_DISPONIBLE`
+
+      Valida la entrada antes de llamar al SRI, verifica que `tipoContribuyente` sea PERSONA NATURAL
+      y responde los errores con el formato `{codigo, mensaje, detalle}`. Documentado con OpenAPI (Swagger).
+    technologyIds: [7NkfDiLzoYOcrpKn1Xda, y0A4IinymBFl3GEKZXjM]
+    icon:
+      technologyId: y0A4IinymBFl3GEKZXjM
+    links:
+      - url: https://github.com/LuisdavidM88/arqdissoft-c4/tree/main/ms-sri
+        customName: Código fuente (ms-sri)
+
+  - id: ms-ant
+    name: ms-ant
+    type: app
+    parentId: sistema
+    caption: Microservicio Java · puntos de licencia con caché
+    description: |
+      **API v1 (puerto 8082)**
+      - `GET /api/v1/licencias/{cedula}/puntos?placa=&actualizar=` → 200 con `fuente` (ANT · CACHE · CACHE_RESPALDO), `esReciente` y `aviso` · 400 `CEDULA_INVALIDA` · 503 `ANT_NO_DISPONIBLE`
+
+      **Patrón Cache-Aside con respaldo (stale-if-error)**
+      1. Dato guardado hace menos de **1 hora** → responde desde Redis sin llamar a la ANT.
+      2. Si no, consulta la ANT con **timeout de 5 s**; cada respuesta adecuada se guarda con **TTL de 7 días**.
+      3. Si la ANT falla → último dato bueno con `esReciente=false` y aviso con la fecha del dato.
+      4. Sin ANT y sin dato guardado → `503 ANT_NO_DISPONIBLE`.
+      5. **Circuit breaker:** tras 3 fallos seguidos no llama a la ANT durante 60 s.
+
+      Justificación: los puntos solo cambian con una citación o un pago, así que 1 hora es prácticamente actual;
+      7 días es el límite para no mostrar un dato engañoso. Una página de error de la ANT nunca se guarda.
+    technologyIds: [7NkfDiLzoYOcrpKn1Xda, y0A4IinymBFl3GEKZXjM]
+    icon:
+      technologyId: y0A4IinymBFl3GEKZXjM
+    links:
+      - url: https://github.com/LuisdavidM88/arqdissoft-c4/tree/main/ms-ant
+        customName: Código fuente (ms-ant)
+
+  - id: cache
+    name: Caché de puntos ANT
+    type: store
+    parentId: sistema
+    caption: Redis en la nube (Upstash)
+    description: |
+      Clave `ant:puntos:{cedula}:{placa}` → último resultado correcto de la ANT y la fecha en que se obtuvo.
+      Tiempo de vida de **7 días**: Redis elimina la entrada automáticamente.
+    technologyIds: [Yj8CPPXztMD4nMBi04y8]
+    icon:
+      technologyId: Yj8CPPXztMD4nMBi04y8
+    links:
+      - url: https://upstash.com
+        customName: Upstash Redis
+
+modelConnections:
+  - id: c-ciudadano-web
+    name: Ingresa correo, RUC y placa; ve sus datos y puntos
+    direction: outgoing
+    originId: ciudadano
+    targetId: web
+    technologyIds: [20VtuIRnZRytNwM9vvxn]
+
+  - id: c-web-ms-sri
+    name: Consulta contribuyente y vehículo (GET /api/v1/contribuyentes, /api/v1/vehiculos)
+    direction: outgoing
+    originId: web
+    targetId: ms-sri
+    technologyIds: [20VtuIRnZRytNwM9vvxn, OfYKvSfjuhOFZLhcoeAB]
+
+  - id: c-web-ms-ant
+    name: Consulta puntos de licencia (GET /api/v1/licencias/{cedula}/puntos)
+    direction: outgoing
+    originId: web
+    targetId: ms-ant
+    technologyIds: [20VtuIRnZRytNwM9vvxn, OfYKvSfjuhOFZLhcoeAB]
+
+  - id: c-ms-sri-catastro
+    name: Verifica contribuyente y obtiene sus datos
+    direction: outgoing
+    originId: ms-sri
+    targetId: sri-catastro
+    technologyIds: [20VtuIRnZRytNwM9vvxn, OfYKvSfjuhOFZLhcoeAB]
+
+  - id: c-ms-sri-matriculacion
+    name: Obtiene los datos del vehículo por placa
+    direction: outgoing
+    originId: ms-sri
+    targetId: sri-matriculacion
+    technologyIds: [20VtuIRnZRytNwM9vvxn, OfYKvSfjuhOFZLhcoeAB]
+
+  - id: c-ms-ant-ant
+    name: Consulta citaciones y puntos (HTML, timeout 5 s)
+    direction: outgoing
+    originId: ms-ant
+    targetId: ant
+    technologyIds: [20VtuIRnZRytNwM9vvxn]
+
+  - id: c-ms-ant-cache
+    name: Lee y guarda el último dato bueno (TTL 7 días)
+    direction: outgoing
+    originId: ms-ant
+    targetId: cache
+    technologyIds: [z9ycNGQ2cGGNnoMXbM2p]
