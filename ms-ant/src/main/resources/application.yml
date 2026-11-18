@@ -1,0 +1,33 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: ms-ant
+  config:
+    import: optional:file:.env[.properties]
+  data:
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379}
+      timeout: 3s
+
+ant:
+  modo: ${ANT_MODO:real}
+  url: https://consultaweb.ant.gob.ec/PortalWEB/paginas/clientes/clp_grid_citaciones.jsp?ps_tipo_identificacion=CED&ps_identificacion={cedula}&ps_placa={placa}
+  timeout-ms: 5000
+  frescura: 1h
+  vigencia: 7d
+  fallos-para-abrir-circuito: 3
+  circuito-abierto: 60s
+  simular-caida: false
+
+cache:
+  tipo: ${CACHE_TIPO:redis}
+
+app:
+  cors:
+    origenes: http://localhost:5173
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
