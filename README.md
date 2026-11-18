@@ -8,6 +8,7 @@ Sistema web que verifica en el SRI que un RUC pertenezca a un contribuyente pers
 
 - Nivel 1 · Contexto: https://s.icepanel.io/Dz3ZjrZimBwdlF/HGR7
 - Nivel 2 · Contenedores: https://s.icepanel.io/Dz3ZjrZimBwdlF/7BWA
+- Nivel 3 · Componentes: en IcePanel, dentro de cada contenedor (Web, ms-sri y ms-ant); cada componente enlaza a su archivo en GitHub.
 
 | Contenedor | Tecnología | Responsabilidad |
 |---|---|---|

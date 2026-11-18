@@ -1,11 +1,14 @@
+# yaml-language-server: $schema=https://api.icepanel.io/v1/schemas/LandscapeImportData
 namespace: arqdissoft-c4
 
 modelObjects:
+  # ---------------------------------------------------------------- Dominio
   - id: dominio
     name: Consulta Vehicular SRI y ANT
     type: domain
     caption: Diseño y Arquitectura de Software (ISWZ2202) · David Morales
 
+  # ---------------------------------------------------------------- Nivel 1: contexto
   - id: ciudadano
     name: Ciudadano
     type: actor
@@ -76,6 +79,7 @@ modelObjects:
       - url: https://consultaweb.ant.gob.ec/PortalWEB/paginas/clientes/clp_grid_citaciones.jsp?ps_tipo_identificacion=CED&ps_identificacion=&ps_placa=
         customName: clp_grid_citaciones.jsp
 
+  # ---------------------------------------------------------------- Nivel 2: contenedores
   - id: web
     name: Web Consulta Vehicular
     type: app
